@@ -1,0 +1,5 @@
+Diffusion1:
+FID:  183.52982870141295
+
+Diffusion2:
+
