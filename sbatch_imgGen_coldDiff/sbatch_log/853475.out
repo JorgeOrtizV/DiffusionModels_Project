@@ -1,0 +1,45 @@
+/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/sklearn/base.py:376: InconsistentVersionWarning: Trying to unpickle estimator GaussianMixture from version 1.2.2 when using version 1.5.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py:220: FutureWarning: You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature.
+  model.load_state_dict(torch.load('Models/DM/coldDiff1'))
+Generating initial images...
+Reversing initial images...
+  0%|          | 0/300 [00:00<?, ?it/s]  0%|          | 0/300 [00:10<?, ?it/s]
+Traceback (most recent call last):
+  File "/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py", line 242, in <module>
+    main()
+  File "/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py", line 236, in main
+    sampled_images = diffusion.sample(model, batch_size=batch_size, x_t=initial_images)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py", line 42, in sample
+    pred_x0 = model(x_prev, s_)
+              ^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py", line 106, in forward
+    x = self.sa6(x)
+        ^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/bmicnas01/data-biwi-01/jointmaster_project_bmicscratch/data/DiffusionModels_Project/sbatch_imgGen_coldDiff/coldDiff_imageGen.py", line 192, in forward
+    attention_value, _ = self.mha(x_ln, x_ln, x_ln)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1736, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1747, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch_net/spumetti/ortizj/conda_envs/pytcu11/lib/python3.12/site-packages/torch/nn/modules/activation.py", line 1308, in forward
+    return torch._native_multi_head_attention(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 9.16 GiB. GPU 0 has a total capacity of 10.92 GiB of which 7.88 GiB is free. Including non-PyTorch memory, this process has 3.03 GiB memory in use. Of the allocated memory 1.37 GiB is allocated by PyTorch, and 938.24 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)
