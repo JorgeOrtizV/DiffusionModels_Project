@@ -168,6 +168,8 @@ def main(args):
 
     train(args.epochs, train_loader, val_loader, model, optimizer, diffusion, device, loss_fn)
 
+    torch.save(model.state_dict(), args.model_output_dir)
+
 
 
 if __name__ == "__main__":
