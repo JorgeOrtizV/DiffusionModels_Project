@@ -7,7 +7,12 @@ from matplotlib import pyplot as plt
 import argparse
 import sys
 import torchvision
-
+import os
+import subprocess
+import math
+from torchvision.utils import save_image
+import pickle
+import time
 
 # import scripts
 from Diffusion import Diffusion
@@ -39,6 +44,8 @@ def argparser(args):
     training_params.add_argument("--optimizer", type=str, default="Adam", dest="opt", help="Select optimizer to be used for training. Accepted values: Adam...")
     training_params.add_argument("--loss", type=str, default="MSE", dest="loss", help="Select loss function for model training. Accepted values: MSE, ...")
     training_params.add_argument("--model_output", type=str, required=True, dest="model_output_dir", help="Provide a directory to story your trained model.")
+    training_params.add_argument("--verbose", "-v", dest='v', action='store_const', const=True, default=False, help="If given activates verbose mode.")
+    training_params.add_argument("--random-seed", dest="random_seed", default=32, type=int, help="If provided np.random.seed is fixed to the given value. Default value is 32.")
 
     # TODO: enable give a path for train, test, val datasets
     dataset_params.add_argument("--MNIST", dest="MNIST", action='store_const', const=True, default=False, help="Selects MNIST dataset for training, validation, and test")
@@ -48,6 +55,11 @@ def argparser(args):
     dataset_params.add_argument("--img_size", dest="img_size", required=True, type=int, help="Provide the size of the images used for training and therefore generation size. Please use square images")
 
     # TODO: Add options for evaluation. E.g. FID
+    model_eval.add_argument("--eval", dest="eval_method", default=None, type=str, help="Provide the evaluation method to be used once the model was trained. Available options: FID")
+    model_eval.add_argument("--eval-steps", dest='eval-steps', default=None, type=int, help="Evaluate the model during training every n steps. If not given model is just evaluated until training is completed.")
+    model_eval.add_argument("--eval-samples", dest='eval-samples', default=None, type=int, help="Proved the number of samples N to be generated to evaluate model distribution against N samples of data distribution")
+
+
 
     argsvalue = parser.parse_args(args)
     return argsvalue
@@ -65,9 +77,15 @@ def plot_images(images):
     plt.show()
 
 
-def train(epochs, train_loader, val_loader, model, optimizer, diffusion, device, loss_fn):
+def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diffusion, device, loss_fn, verbose, eval, eval_steps, eval_samples, batch_size):
     train_losses = []
     val_losses = []
+    fids = []
+
+    sample_dir = "data/eval_sampled"
+    test_dir = "data/eval_test"
+    os.makedirs(sample_dir, exist_ok=True)
+    os.makedirs(test_dir, exist_ok=True)
 
     for epoch in tqdm(range(epochs)):
         train_loss = 0
@@ -96,16 +114,60 @@ def train(epochs, train_loader, val_loader, model, optimizer, diffusion, device,
                 val_loss += batch_val_loss.item()
         
         # Sample only every 3 epochs for opt purposes
-        if epoch%3 == 0:
-            sampled_images = diffusion.sample(model, n=x.shape[0])
-            plot_images(sampled_images)
+        if verbose:
+            if epoch%5 == 0:
+                sampled_images = diffusion.sample(model, n=x.shape[0])
+                plot_images(sampled_images)
+
+        if eval:
+            it = math.ceil(eval_samples/batch_size)
+            # Remove all existing elements from saved folders
+            for folder in [sample_dir, test_dir]:
+                for f in os.listdir(folder):
+                    os.remove(os.path.join(folder, f))
+            if epoch%eval_steps == 0:
+                for j in range(it):
+                    sampled_images = diffusion.sample(model, n=x.shape[0])
+                    for i, img in enumerate(sampled_images):
+                        if j*batch_size+i >= sampled_images:
+                            break
+                        # make it 3 channel - I noticed it doesn't make a difference in the FID score
+                        # img_tensor = img.squeeze(0)
+                        # if img_tensor.dim() == 2:
+                        #     img_tensor = img_tensor.expand(3,-1,-1)
+                        save_image(img, os.path.join(sample_dir, f"{j*batch_size+i}.png"))
+                test_dl = torch.utils.data.DataLoader(test_dataset, batch_size=eval_samples, shuffle=True)
+                test_batch = next(iter(test_dl))[0][:eval_samples]
+                # Save sampled images and original images
+                for i, img in enumerate(test_batch):
+                    # make it 3 channel
+                    # img_tensor = img.squeeze(0)
+                    # if img_tensor.dim() == 2:
+                    #     img_tensor = img_tensor.expand(3,-1,-1)
+                    save_image(img, os.path.join(test_dir, f"{i}.png"))
+                # Calculate FID
+                fid_proc = subprocess.run(
+                    ["python", "-m", "pytorch_fid", sample_dir, test_dir],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                fid_line = fid_proc.stdout.splitlines()[-1]
+                fid_value = float(fid_line.strip().split()[-1])
+                fids.append(fid_value)
+                if verbose:
+                    print(f"FID: {fid_value}")
+
             
         # Save loss
         avg_train_loss = train_loss/len(train_loader)
         avg_val_loss = val_loss/len(val_loader)
-        print(f"Epoch [{epoch+1}/100] | Train Loss: {avg_train_loss:.4f} | Validation Loss: {avg_val_loss:.4f}")
+        if verbose:
+            print(f"Epoch [{epoch+1}/100] | Train Loss: {avg_train_loss:.4f} | Validation Loss: {avg_val_loss:.4f}")
         train_losses.append(avg_train_loss)
         val_losses.append(avg_val_loss)
+
+    return fids, train_losses, val_losses
 
 def main(args):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -118,12 +180,15 @@ def main(args):
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize((0.5,), (0.5,)) 
         ])
+        fid_transform = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor()
+        ])
         dataset = torchvision.datasets.MNIST(root="./data", train=True, transform=transforms, download=True)
-        test_dataset = torchvision.datasets.MNIST(root="./data", train=False, transform=transforms, download=True)
+        test_dataset = torchvision.datasets.MNIST(root="./data", train=False, transform=fid_transform, download=True)
 
         train_indices, val_indices = split_indices(len(dataset), 0.2)
         train_sampler = SubsetRandomSampler(train_indices)
-        train_loader = torch.utils.data.DataLoader(dataset, args.batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(dataset, args.batch_size, sampler=train_sampler)
         val_sampler = SubsetRandomSampler(val_indices)
         val_loader = DataLoader(dataset, args.batch_size, sampler=val_sampler)
 
@@ -164,11 +229,23 @@ def main(args):
     if args.model_sel == "DDPM":
         diffusion = Diffusion(img_size=args.img_size, device=device)
     
-    length = len(train_loader)
-
-    train(args.epochs, train_loader, val_loader, model, optimizer, diffusion, device, loss_fn)
-
+    fids, train_losses, val_losses = train(args.epochs, train_loader, val_loader, test_dataset, model, optimizer, diffusion, device, loss_fn, args.v, args.eval, args.eval_steps, args.eval_samples, args.batch_size)
+    
+    # Save outputs
     torch.save(model.state_dict(), args.model_output_dir)
+    out_dir = "data/temp"
+    os.makedirs(out_dir, exist_ok=True)
+    t = time.localtime()
+    timestamp = time.strftime('%b-%d-%Y_%H%M', t)
+    with open(out_dir+f'/train_losses_{timestamp}.pkl', 'wb') as f:
+        pickle.dump(train_losses, f)
+    with open(out_dir+f'/val_losses_{timestamp}.pkl', 'wb') as f:
+        pickle.dump(val_losses, f)
+    if args.eval:
+        with open(out_dir+f'/fids_{timestamp}.pkl', 'wb') as f:
+            pickle.dump(fids, f)
+    
+
 
 
 
