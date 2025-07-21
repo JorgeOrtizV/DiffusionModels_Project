@@ -16,6 +16,7 @@ import time
 
 # import scripts
 from Diffusion import Diffusion
+from ColdDiffusion import coldDiff
 from Unet import UNet
 
 
@@ -31,53 +32,191 @@ def argparser(args):
     model_eval = parser.add_argument_group()
     dataset_params = parser.add_argument_group()
 
-    model_selection.add_argument("--model", type=str, dest='model_sel', default='DDPM', help="Selection of Generative Model. Available options are: DDPM, GAN, LDM, EBM", required=True)
+    model_selection.add_argument(
+        "--model",
+        type=str,
+        dest="model_sel",
+        default="DDPM",
+        help="Selection of Generative Model. Available options are: DDPM, GAN, COLDDIFF, LDM, EBM",
+        required=True,
+    )
 
-    model_params.add_argument("--noise-steps", type=int, dest="noise_steps", default=1000, help="Noise steps to be used in the DDPM forward and backward processes.")
-    model_params.add_argument("--beta-start", type=int, dest="beta_start", default=1e-4, help="Set the beta start parameter for DDPM")
-    model_params.add_argument("--beta_end", type=int, default=0.02, dest="beta_end", help="Set the beta end parameter for DDPM")
+    model_params.add_argument(
+        "--noise-steps",
+        type=int,
+        dest="noise_steps",
+        default=1000,
+        help="Noise steps to be used in the DDPM forward and backward processes.",
+    )
+    model_params.add_argument(
+        "--beta-start",
+        type=int,
+        dest="beta_start",
+        default=1e-4,
+        help="Set the beta start parameter for DDPM",
+    )
+    model_params.add_argument(
+        "--beta_end",
+        type=int,
+        default=0.02,
+        dest="beta_end",
+        help="Set the beta end parameter for DDPM",
+    )
 
-    training_params.add_argument("--epochs", type=int, dest="epochs", default=100, help="Set the number of training iterations")
-    training_params.add_argument("--batch_size", type=int, dest="batch_size", default=64, help="Selects batch size for training.")
-    training_params.add_argument("--lr", type=int, default=3e-4, dest="lr", help="Set training learning rate")
+    training_params.add_argument(
+        "--epochs",
+        type=int,
+        dest="epochs",
+        default=100,
+        help="Set the number of training iterations",
+    )
+    training_params.add_argument(
+        "--batch_size",
+        type=int,
+        dest="batch_size",
+        default=64,
+        help="Selects batch size for training.",
+    )
+    training_params.add_argument(
+        "--lr", type=int, default=3e-4, dest="lr", help="Set training learning rate"
+    )
     # TODO: Add optimizer/loss options if necessary. If not remove the parameter
-    training_params.add_argument("--optimizer", type=str, default="Adam", dest="opt", help="Select optimizer to be used for training. Accepted values: Adam...")
-    training_params.add_argument("--loss", type=str, default="MSE", dest="loss", help="Select loss function for model training. Accepted values: MSE, ...")
-    training_params.add_argument("--model_output", type=str, required=True, dest="model_output_dir", help="Provide a directory to story your trained model.")
-    training_params.add_argument("--verbose", "-v", dest='v', action='store_const', const=True, default=False, help="If given activates verbose mode.")
-    training_params.add_argument("--random-seed", dest="random_seed", default=32, type=int, help="If provided np.random.seed is fixed to the given value. Default value is 32.")
+    training_params.add_argument(
+        "--optimizer",
+        type=str,
+        default="Adam",
+        dest="opt",
+        help="Select optimizer to be used for training. Accepted values: Adam...",
+    )
+    training_params.add_argument(
+        "--loss",
+        type=str,
+        default="MSE",
+        dest="loss",
+        help="Select loss function for model training. Accepted values: MSE, ...",
+    )
+    training_params.add_argument(
+        "--model_output",
+        type=str,
+        required=True,
+        dest="model_output_dir",
+        help="Provide a directory to story your trained model.",
+    )
+    training_params.add_argument(
+        "--verbose",
+        "-v",
+        dest="v",
+        action="store_const",
+        const=True,
+        default=False,
+        help="If given activates verbose mode.",
+    )
+    training_params.add_argument(
+        "--random-seed",
+        dest="random_seed",
+        default=32,
+        type=int,
+        help="If provided np.random.seed is fixed to the given value. Default value is 32.",
+    )
 
     # TODO: enable give a path for train, test, val datasets
-    dataset_params.add_argument("--MNIST", dest="MNIST", action='store_const', const=True, default=False, help="Selects MNIST dataset for training, validation, and test")
-    dataset_params.add_argument("--train_dataset", dest="train_dataset", default=None, type=str, help="Give the path for a folder to use as training dataset")
-    dataset_params.add_argument("--test_dataset", dest="test_dataset", default=None, type=str, help="Give the path for a folder to use as test dataset")
-    dataset_params.add_argument("--val_dataset", dest="val_dataset", default=None, type=str, help="Give the path for a folder to use as validation dataset")
-    dataset_params.add_argument("--img_size", dest="img_size", required=True, type=int, help="Provide the size of the images used for training and therefore generation size. Please use square images")
+    dataset_params.add_argument(
+        "--MNIST",
+        dest="MNIST",
+        action="store_const",
+        const=True,
+        default=False,
+        help="Selects MNIST dataset for training, validation, and test",
+    )
+    dataset_params.add_argument(
+        "--train_dataset",
+        dest="train_dataset",
+        default=None,
+        type=str,
+        help="Give the path for a folder to use as training dataset",
+    )
+    dataset_params.add_argument(
+        "--test_dataset",
+        dest="test_dataset",
+        default=None,
+        type=str,
+        help="Give the path for a folder to use as test dataset",
+    )
+    dataset_params.add_argument(
+        "--val_dataset",
+        dest="val_dataset",
+        default=None,
+        type=str,
+        help="Give the path for a folder to use as validation dataset",
+    )
+    dataset_params.add_argument(
+        "--img_size",
+        dest="img_size",
+        required=True,
+        type=int,
+        help="Provide the size of the images used for training and therefore generation size. Please use square images",
+    )
 
     # TODO: Add options for evaluation. E.g. FID
-    model_eval.add_argument("--eval", dest="eval_method", default=None, type=str, help="Provide the evaluation method to be used once the model was trained. Available options: FID")
-    model_eval.add_argument("--eval-steps", dest='eval-steps', default=None, type=int, help="Evaluate the model during training every n steps. If not given model is just evaluated until training is completed.")
-    model_eval.add_argument("--eval-samples", dest='eval-samples', default=None, type=int, help="Proved the number of samples N to be generated to evaluate model distribution against N samples of data distribution")
-
-
+    model_eval.add_argument(
+        "--eval",
+        dest="eval_method",
+        default=None,
+        type=str,
+        help="Provide the evaluation method to be used once the model was trained. Available options: FID",
+    )
+    model_eval.add_argument(
+        "--eval_steps",
+        dest="eval_steps",
+        default=None,
+        type=int,
+        help="Evaluate the model during training every n steps. If not given model is just evaluated until training is completed.",
+    )
+    model_eval.add_argument(
+        "--eval_samples",
+        dest="eval_samples",
+        default=None,
+        type=int,
+        help="Proved the number of samples N to be generated to evaluate model distribution against N samples of data distribution",
+    )
 
     argsvalue = parser.parse_args(args)
     return argsvalue
 
 
 def split_indices(n, val_pct):
-    n_val = int(val_pct*n)
+    n_val = int(val_pct * n)
     idxs = np.random.permutation(n)
     return idxs[n_val:], idxs[:n_val]
 
 
 def plot_images(images):
     plt.figure(figsize=(32, 32))
-    plt.imshow(torch.cat([torch.cat([i for i in images.cpu()], dim=-1)], dim=-2).permute(1,2,0).cpu(), cmap='gray')
+    plt.imshow(
+        torch.cat([torch.cat([i for i in images.cpu()], dim=-1)], dim=-2)
+        .permute(1, 2, 0)
+        .cpu(),
+        cmap="gray",
+    )
     plt.show()
 
 
-def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diffusion, device, loss_fn, verbose, eval, eval_steps, eval_samples, batch_size):
+def train(
+    epochs,
+    train_loader,
+    val_loader,
+    test_dataset,
+    model,
+    optimizer,
+    diffusion,
+    device,
+    loss_fn,
+    verbose,
+    eval,
+    eval_steps,
+    eval_samples,
+    batch_size,
+):
     train_losses = []
     val_losses = []
     fids = []
@@ -94,7 +233,7 @@ def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diff
             x = x.to(device)
             t = diffusion.sample_timesteps(x.shape[0]).to(device)
             x_t, noise = diffusion.noise_images(x, t)
-            
+
             predicted_noise = model(x_t, t)
             loss = loss_fn(noise, predicted_noise)
             loss.backward()
@@ -104,39 +243,43 @@ def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diff
         with torch.no_grad():
             model.eval()
             for x, _ in val_loader:
-                #print(type(x))
-                #print(x.shape)
+                # print(type(x))
+                # print(x.shape)
                 x = x.to(device)
                 t = diffusion.sample_timesteps(x.shape[0]).to(device)
                 x_t, noise = diffusion.noise_images(x, t)
                 predicted_noise = model(x_t, t)
                 batch_val_loss = loss_fn(noise, predicted_noise)
                 val_loss += batch_val_loss.item()
-        
+
         # Sample only every 3 epochs for opt purposes
         if verbose:
-            if epoch%5 == 0:
+            if epoch % 5 == 0:
                 sampled_images = diffusion.sample(model, n=x.shape[0])
                 plot_images(sampled_images)
 
         if eval:
-            it = math.ceil(eval_samples/batch_size)
+            it = math.ceil(eval_samples / batch_size)
             # Remove all existing elements from saved folders
             for folder in [sample_dir, test_dir]:
                 for f in os.listdir(folder):
                     os.remove(os.path.join(folder, f))
-            if epoch%eval_steps == 0:
+            if epoch % eval_steps == 0:
                 for j in range(it):
                     sampled_images = diffusion.sample(model, n=x.shape[0])
                     for i, img in enumerate(sampled_images):
-                        if j*batch_size+i >= sampled_images:
+                        if j * batch_size + i >= sampled_images:
                             break
                         # make it 3 channel - I noticed it doesn't make a difference in the FID score
                         # img_tensor = img.squeeze(0)
                         # if img_tensor.dim() == 2:
                         #     img_tensor = img_tensor.expand(3,-1,-1)
-                        save_image(img, os.path.join(sample_dir, f"{j*batch_size+i}.png"))
-                test_dl = torch.utils.data.DataLoader(test_dataset, batch_size=eval_samples, shuffle=True)
+                        save_image(
+                            img, os.path.join(sample_dir, f"{j*batch_size+i}.png")
+                        )
+                test_dl = torch.utils.data.DataLoader(
+                    test_dataset, batch_size=eval_samples, shuffle=True
+                )
                 test_batch = next(iter(test_dl))[0][:eval_samples]
                 # Save sampled images and original images
                 for i, img in enumerate(test_batch):
@@ -150,7 +293,7 @@ def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diff
                     ["python", "-m", "pytorch_fid", sample_dir, test_dir],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    text=True
+                    text=True,
                 )
                 fid_line = fid_proc.stdout.splitlines()[-1]
                 fid_value = float(fid_line.strip().split()[-1])
@@ -158,52 +301,156 @@ def train(epochs, train_loader, val_loader, test_dataset, model, optimizer, diff
                 if verbose:
                     print(f"FID: {fid_value}")
 
-            
         # Save loss
-        avg_train_loss = train_loss/len(train_loader)
-        avg_val_loss = val_loss/len(val_loader)
+        avg_train_loss = train_loss / len(train_loader)
+        avg_val_loss = val_loss / len(val_loader)
         if verbose:
-            print(f"Epoch [{epoch+1}/100] | Train Loss: {avg_train_loss:.4f} | Validation Loss: {avg_val_loss:.4f}")
+            print(
+                f"Epoch [{epoch+1}/100] | Train Loss: {avg_train_loss:.4f} | Validation Loss: {avg_val_loss:.4f}"
+            )
         train_losses.append(avg_train_loss)
         val_losses.append(avg_val_loss)
 
     return fids, train_losses, val_losses
 
+
+def train_colddiff(
+    epochs,
+    train_loader,
+    val_loader,
+    test_dataset,
+    model,
+    optimizer,
+    diffusion,
+    device,
+    loss_fn,
+    noise_function,
+    verbose,
+    eval,
+    eval_steps,
+    eval_samples,
+    batch_size,
+    scheduler=None,
+    writer=None,
+    sampling_type=None,
+    gmm=None,
+):
+    train_losses = []
+    val_losses = []
+    fids = []
+
+    sample_dir = "data/eval_sampled"
+    test_dir = "data/eval_test"
+    os.makedirs(sample_dir, exist_ok=True)
+    os.makedirs(test_dir, exist_ok=True)
+
+    for epoch in tqdm(range(epochs)):
+        train_loss = 0
+        print("DEBUG: Training epoch", epoch)
+        print("DEBUG: device", device)
+        for x, _ in train_loader:
+            optimizer.zero_grad()
+            x = x.to(device)
+            t = diffusion.sample_timesteps(x.shape[0]).to(device)
+            x_t = noise_function(x, t)
+            pred = model(x_t, t)
+            loss = loss_fn(pred, x)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        val_loss = 0
+        model.eval()
+        with torch.no_grad():
+            for x, _ in val_loader:
+                x = x.to(device)
+                t = diffusion.sample_timesteps(x.shape[0]).to(device)
+                x_t = noise_function(x, t)
+                pred = model(x_t, t)
+                batch_val_loss = loss_fn(pred, x)
+                val_loss += batch_val_loss.item()
+                del x, x_t, t, pred, batch_val_loss
+            if scheduler is not None:
+                scheduler.step(val_loss / len(val_loader))
+            if verbose and epoch % 3 == 0:
+                sampled_images = diffusion.sample(
+                    model,
+                    batch_size=16,
+                    initial_image=sampling_type,
+                    gmm=gmm,
+                    data_loader=val_loader,
+                )
+                plot_images(sampled_images)
+        avg_train_loss = train_loss / len(train_loader)
+        avg_val_loss = val_loss / len(val_loader)
+        if writer is not None:
+            writer.add_scalar("Loss/train", avg_train_loss, epoch)
+            writer.add_scalar("Loss/val", avg_val_loss, epoch)
+            writer.add_scalar("Learning Rate", optimizer.param_groups[0]["lr"], epoch)
+        if verbose:
+            lr = (
+                scheduler.get_last_lr()[0]
+                if scheduler is not None
+                else optimizer.param_groups[0]["lr"]
+            )
+            print(
+                f"Epoch [{epoch+1}/{epochs}] | Train Loss: {avg_train_loss:.4f} | Validation Loss: {avg_val_loss:.4f} | Learning Rate: {lr:.10f}"
+            )
+        train_losses.append(avg_train_loss)
+        val_losses.append(avg_val_loss)
+    if writer is not None:
+        writer.close()
+    return fids, train_losses, val_losses
+
+
 def main(args):
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Retrieve dataset
     if args.MNIST:
-        transforms = torchvision.transforms.Compose([
-            #torchvision.transforms.Resize(80),
-            #torchvision.transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
-            torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize((0.5,), (0.5,)) 
-        ])
-        fid_transform = torchvision.transforms.Compose([
-            torchvision.transforms.ToTensor()
-        ])
-        dataset = torchvision.datasets.MNIST(root="./data", train=True, transform=transforms, download=True)
-        test_dataset = torchvision.datasets.MNIST(root="./data", train=False, transform=fid_transform, download=True)
+        transforms = torchvision.transforms.Compose(
+            [
+                # torchvision.transforms.Resize(80),
+                # torchvision.transforms.RandomResizedCrop(args.img_size, scale=(0.8, 1.0)),
+                torchvision.transforms.ToTensor(),
+                torchvision.transforms.Normalize((0.5,), (0.5,)),
+            ]
+        )
+        fid_transform = torchvision.transforms.Compose(
+            [torchvision.transforms.ToTensor()]
+        )
+        dataset = torchvision.datasets.MNIST(
+            root="./data", train=True, transform=transforms, download=True
+        )
+        test_dataset = torchvision.datasets.MNIST(
+            root="./data", train=False, transform=fid_transform, download=True
+        )
 
         train_indices, val_indices = split_indices(len(dataset), 0.2)
         train_sampler = SubsetRandomSampler(train_indices)
-        train_loader = torch.utils.data.DataLoader(dataset, args.batch_size, sampler=train_sampler)
+        train_loader = torch.utils.data.DataLoader(
+            dataset, args.batch_size, sampler=train_sampler
+        )
         val_sampler = SubsetRandomSampler(val_indices)
         val_loader = DataLoader(dataset, args.batch_size, sampler=val_sampler)
 
         print("MNIST dataset loaded")
 
     # TODO
-    elif args.train_dataset != None and args.test_dataset != None and args.val_dataset != None:
+    elif (
+        args.train_dataset != None
+        and args.test_dataset != None
+        and args.val_dataset != None
+    ):
         pass
-    
+
     else:
-        print("Error retreiving train, test, and validation datasets. Please double check you provided a right path")
+        print(
+            "Error retreiving train, test, and validation datasets. Please double check you provided a right path"
+        )
         raise
 
     # Init model
-    if args.model_sel == "DDPM":
+    if args.model_sel == "DDPM" or args.model_sel == "COLDDIFF":
         model = UNet(device=device).to(device)
     elif args.model_sel == "LDM":
         pass
@@ -228,25 +475,60 @@ def main(args):
     # Init diffusion or any other model
     if args.model_sel == "DDPM":
         diffusion = Diffusion(img_size=args.img_size, device=device)
-    
-    fids, train_losses, val_losses = train(args.epochs, train_loader, val_loader, test_dataset, model, optimizer, diffusion, device, loss_fn, args.v, args.eval, args.eval_steps, args.eval_samples, args.batch_size)
-    
+        fids, train_losses, val_losses = train(
+            args.epochs,
+            train_loader,
+            val_loader,
+            test_dataset,
+            model,
+            optimizer,
+            diffusion,
+            device,
+            loss_fn,
+            args.v,
+            args.eval_method,
+            args.eval_steps,
+            args.eval_samples,
+            args.batch_size,
+        )
+    elif args.model_sel == "COLDDIFF":
+        diffusion = coldDiff(
+            img_size=args.img_size,
+            noise_steps=args.noise_steps,
+            degradation_type="blur",
+            device=device,
+        )
+        fids, train_losses, val_losses = train_colddiff(
+            args.epochs,
+            train_loader,
+            val_loader,
+            test_dataset,
+            model,
+            optimizer,
+            diffusion,
+            device,
+            loss_fn,
+            diffusion.noise_images,
+            args.v,
+            args.eval_method,
+            args.eval_steps,
+            args.eval_samples,
+            args.batch_size,
+        )
+
     # Save outputs
     torch.save(model.state_dict(), args.model_output_dir)
     out_dir = "data/temp"
     os.makedirs(out_dir, exist_ok=True)
     t = time.localtime()
-    timestamp = time.strftime('%b-%d-%Y_%H%M', t)
-    with open(out_dir+f'/train_losses_{timestamp}.pkl', 'wb') as f:
+    timestamp = time.strftime("%b-%d-%Y_%H%M", t)
+    with open(out_dir + f"/train_losses_{timestamp}.pkl", "wb") as f:
         pickle.dump(train_losses, f)
-    with open(out_dir+f'/val_losses_{timestamp}.pkl', 'wb') as f:
+    with open(out_dir + f"/val_losses_{timestamp}.pkl", "wb") as f:
         pickle.dump(val_losses, f)
-    if args.eval:
-        with open(out_dir+f'/fids_{timestamp}.pkl', 'wb') as f:
+    if args.eval_method == "FID":
+        with open(out_dir + f"/fids_{timestamp}.pkl", "wb") as f:
             pickle.dump(fids, f)
-    
-
-
 
 
 if __name__ == "__main__":
